@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/widgets/novella_loading_indicator.dart';
 import '../../reader/presentation/book_detail_screen.dart';
 import '../application/library_providers.dart';
 import '../domain/book.dart';
@@ -14,8 +15,27 @@ class LibraryScreen extends ConsumerWidget {
     final library = ref.watch(libraryProvider);
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
     return library.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (_, __) => const Center(child: Text('Unable to load library')),
+      loading: () => const NovellaLoadingIndicator(),
+      error: (error, _) => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Unable to load library'),
+            const SizedBox(height: 10),
+            Text(
+              error.toString(),
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 11, color: Color(0xFF7B7E86)),
+            ),
+            const SizedBox(height: 14),
+            OutlinedButton.icon(
+              onPressed: () => ref.invalidate(libraryProvider),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Try again'),
+            ),
+          ],
+        ),
+      ),
       data: (books) => Stack(
         children: [
           const Positioned(top: 302, left: 112, child: _BlueGlow()),

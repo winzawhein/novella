@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/widgets/novella_loading_indicator.dart';
 import '../application/reader_providers.dart';
 import '../application/reader_content_providers.dart';
 import '../../library/domain/book.dart';
@@ -41,7 +42,54 @@ class ReaderScreen extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 50),
-              Expanded(child: chapter.when(loading: () => const Center(child: CircularProgressIndicator()), error: (_, __) => Center(child: Text('Unable to load this book.', style: TextStyle(color: color))), data: (item) { if (item == null) return Center(child: Text('This book has no chapter content yet.', style: TextStyle(color: color))); return SingleChildScrollView(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Chapter ${item.number}', style: TextStyle(color: color.withValues(alpha: .45))), const SizedBox(height: 14), Text(item.title, style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: color)), const SizedBox(height: 28), Text(item.content, style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: color.withValues(alpha: .78)))])); })),
+              Expanded(
+                child: chapter.when(
+                  loading: () => const NovellaLoadingIndicator(
+                    message: 'Opening your book',
+                  ),
+                  error: (_, __) => Center(
+                    child: Text(
+                      'Unable to load this book.',
+                      style: TextStyle(color: color),
+                    ),
+                  ),
+                  data: (item) {
+                    if (item == null)
+                      return Center(
+                        child: Text(
+                          'This book has no chapter content yet.',
+                          style: TextStyle(color: color),
+                        ),
+                      );
+                    return SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Chapter ${item.number}',
+                            style: TextStyle(
+                              color: color.withValues(alpha: .45),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Text(
+                            item.title,
+                            style: Theme.of(
+                              context,
+                            ).textTheme.headlineMedium?.copyWith(color: color),
+                          ),
+                          const SizedBox(height: 28),
+                          Text(
+                            item.content,
+                            style: Theme.of(context).textTheme.bodyLarge
+                                ?.copyWith(color: color.withValues(alpha: .78)),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
               LinearProgressIndicator(value: ref.watch(readerProgressProvider)),
               const SizedBox(height: 20),
             ],

@@ -1,114 +1,143 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../library/application/library_providers.dart';
 import '../../library/domain/book.dart';
 import '../../library/presentation/widgets/book_cover.dart';
 import 'reader_screen.dart';
 
-class BookDetailScreen extends StatelessWidget {
+class BookDetailScreen extends ConsumerWidget {
   const BookDetailScreen({super.key, required this.book});
   final Book book;
   @override
-  Widget build(BuildContext context) => Scaffold(
-    body: Stack(
-      children: [
-        CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(child: _DetailHero(book: book)),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(44, 36, 44, 140),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      book.title,
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
-                    const SizedBox(height: 15),
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 14,
-                          backgroundColor: Color(0xFF303238),
-                          child: Icon(
-                            Icons.person,
-                            size: 17,
-                            color: Colors.white,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isSaved = ref.watch(savedBookIdsProvider).contains(book.id);
+    return Scaffold(
+      body: Stack(
+        children: [
+          CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(child: _DetailHero(book: book)),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(44, 36, 44, 140),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        book.title,
+                        style: Theme.of(context).textTheme.headlineMedium,
+                      ),
+                      const SizedBox(height: 15),
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 14,
+                            backgroundColor: Color(0xFF303238),
+                            child: Icon(
+                              Icons.person,
+                              size: 17,
+                              color: Colors.white,
+                            ),
                           ),
-                        ),
-                        SizedBox(width: 9),
-                        Text(
-                          book.author,
-                          style: const TextStyle(
-                            color: Color(0xFFB0B4BF),
-                            fontSize: 17,
+                          SizedBox(width: 9),
+                          Text(
+                            book.author,
+                            style: const TextStyle(
+                              color: Color(0xFFB0B4BF),
+                              fontSize: 17,
+                            ),
                           ),
+                        ],
+                      ),
+                      const SizedBox(height: 38),
+                      Row(
+                        children: [
+                          Icon(Icons.star, color: Color(0xFFFFBF20), size: 22),
+                          SizedBox(width: 8),
+                          Text(
+                            book.rating.toStringAsFixed(1),
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          SizedBox(width: 18),
+                          Text(
+                            'Mostly Positive (${book.reviewCount} Reviews)',
+                            style: TextStyle(fontSize: 13),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 35),
+                      const Text(
+                        'Introduction',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Color(0xFF8D919A),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 38),
-                    Row(
-                      children: [
-                        Icon(Icons.star, color: Color(0xFFFFBF20), size: 22),
-                        SizedBox(width: 8),
-                        Text(
-                          book.rating.toStringAsFixed(1),
-                          style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 15),
+                      Text(
+                        book.description?.isNotEmpty == true
+                            ? book.description!
+                            : 'No description has been added for this book yet.',
+                        style: const TextStyle(
+                          color: Color(0xFFB0B4BF),
+                          height: 1.7,
                         ),
-                        SizedBox(width: 18),
-                        Text(
-                          'Mostly Positive (${book.reviewCount} Reviews)',
-                          style: TextStyle(fontSize: 13),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 35),
-                    const Text(
-                      'Introduction',
-                      style: TextStyle(fontSize: 16, color: Color(0xFF8D919A)),
-                    ),
-                    const SizedBox(height: 15),
-                    Text(
-                      book.description?.isNotEmpty == true ? book.description! : 'No description has been added for this book yet.',
-                      style: const TextStyle(color: Color(0xFFB0B4BF), height: 1.7),
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Positioned(
+            right: 43,
+            top: 403,
+            child: Material(
+              color: const Color(0xFFF46563),
+              shape: const CircleBorder(),
+              child: IconButton(
+                onPressed: () {
+                  final saved = {...ref.read(savedBookIdsProvider)};
+                  isSaved ? saved.remove(book.id) : saved.add(book.id);
+                  ref.read(savedBookIdsProvider.notifier).state = saved;
+                },
+                icon: Icon(
+                  isSaved ? Icons.favorite : Icons.favorite_border,
+                  color: Colors.white,
+                  size: 29,
                 ),
               ),
             ),
-          ],
-        ),
-        const Positioned(
-          right: 43,
-          top: 403,
-          child: CircleAvatar(
-            radius: 28,
-            backgroundColor: Color(0xFFF46563),
-            child: Icon(Icons.favorite, color: Colors.white, size: 29),
           ),
-        ),
-        Positioned(
-          left: 44,
-          right: 44,
-          bottom: 25,
-          child: FilledButton(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => ReaderScreen(book: book)),
-            ),
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF1477FA),
-              minimumSize: const Size.fromHeight(58),
-              shape: const StadiumBorder(),
-            ),
-            child: const Text(
-              'Start reading',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+          Positioned(
+            left: 44,
+            right: 44,
+            bottom: 25,
+            child: FilledButton(
+              onPressed: () {
+                ref.read(selectedBookProvider.notifier).state = book;
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => ReaderScreen(book: book),
+                  ),
+                );
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF1477FA),
+                minimumSize: const Size.fromHeight(58),
+                shape: const StadiumBorder(),
+              ),
+              child: const Text(
+                'Start reading',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+              ),
             ),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 }
 
 class _DetailHero extends StatelessWidget {

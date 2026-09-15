@@ -13,3 +13,4 @@ final libraryProvider = FutureProvider<List<Book>>(
 );
 final selectedBookProvider = StateProvider<Book?>((ref) => null);
 final selectedGenreProvider = StateProvider<String>((ref) => 'Self-Help');
+final savedBookIdsProvider = StateProvider<Set<String>>((ref) => <String>{});
