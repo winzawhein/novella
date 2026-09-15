@@ -14,7 +14,22 @@ class LibraryShell extends ConsumerWidget {
     return Scaffold(
       body: Stack(
         children: [
-          _tabFor(index),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 420),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: animation,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(.035, 0),
+                  end: Offset.zero,
+                ).animate(animation),
+                child: child,
+              ),
+            ),
+            child: KeyedSubtree(key: ValueKey(index), child: _tabFor(index)),
+          ),
           if (!keyboardOpen)
             Align(
               alignment: Alignment.bottomCenter,

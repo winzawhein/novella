@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/widgets/novella_loading_indicator.dart';
+import '../../../core/widgets/friendly_error_state.dart';
 import '../../library/application/library_providers.dart';
 import '../../library/domain/book.dart';
 import '../../library/presentation/widgets/book_cover.dart';
@@ -23,7 +24,10 @@ class MyLibraryScreen extends ConsumerWidget {
     return _Frame(
       child: library.when(
         loading: () => const _Loading(),
-        error: (_, _) => const _Failure(),
+        error: (error, _) => FriendlyErrorState(
+          error: error,
+          onRetry: () => ref.invalidate(libraryProvider),
+        ),
         data: (books) => CustomScrollView(
           slivers: [
             SliverToBoxAdapter(
@@ -75,7 +79,10 @@ class SavedScreen extends ConsumerWidget {
     return _Frame(
       child: library.when(
         loading: () => const _Loading(),
-        error: (_, _) => const _Failure(),
+        error: (error, _) => FriendlyErrorState(
+          error: error,
+          onRetry: () => ref.invalidate(libraryProvider),
+        ),
         data: (books) {
           final saved = books
               .where((book) => savedIds.contains(book.id))
@@ -136,25 +143,51 @@ class ProfileScreen extends ConsumerWidget {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(24, 0, 24, 132),
         children: [
-          _Header(
-            eyebrow: 'ACCOUNT',
-            title: 'Profile',
-            trailing: _RoundButton(icon: Icons.more_horiz_rounded),
+          _Entrance(
+            child: _Header(
+              eyebrow: 'ACCOUNT',
+              title: 'Profile',
+              trailing: _RoundButton(icon: Icons.more_horiz_rounded),
+            ),
           ),
-          const SizedBox(height: 12),
-          _ProfileHero(
-            books: books.length,
-            saved: saved,
-            progress: current == null ? 0 : progress,
+          _Entrance(
+            delay: const Duration(milliseconds: 70),
+            child: Column(
+              children: [
+                const SizedBox(height: 12),
+                _ProfileHero(
+                  books: books.length,
+                  saved: saved,
+                  progress: current == null ? 0 : progress,
+                ),
+              ],
+            ),
+          ),
+          _Entrance(
+            delay: const Duration(milliseconds: 140),
+            child: Column(
+              children: [
+                const SizedBox(height: 32),
+                const _SectionTitle(
+                  title: 'Reading activity',
+                  detail: 'This month',
+                ),
+                const SizedBox(height: 14),
+                _ActivityCard(book: current, progress: progress),
+              ],
+            ),
           ),
           const SizedBox(height: 32),
-          const _SectionTitle(title: 'Reading activity', detail: 'This month'),
-          const SizedBox(height: 14),
-          _ActivityCard(book: current, progress: progress),
-          const SizedBox(height: 32),
-          const _SectionTitle(title: 'Preferences', detail: ''),
-          const SizedBox(height: 10),
-          const _Preferences(),
+          _Entrance(
+            delay: const Duration(milliseconds: 210),
+            child: const Column(
+              children: [
+                _SectionTitle(title: 'Preferences', detail: ''),
+                SizedBox(height: 10),
+                _Preferences(),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -168,6 +201,49 @@ class _Frame extends StatelessWidget {
   Widget build(BuildContext context) => DecoratedBox(
     decoration: const BoxDecoration(color: _canvas),
     child: SafeArea(child: child),
+  );
+}
+
+class _Entrance extends StatefulWidget {
+  const _Entrance({required this.child, this.delay = Duration.zero});
+  final Widget child;
+  final Duration delay;
+
+  @override
+  State<_Entrance> createState() => _EntranceState();
+}
+
+class _EntranceState extends State<_Entrance>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 480),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    Future<void>.delayed(widget.delay, () {
+      if (mounted) _controller.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => FadeTransition(
+    opacity: CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+    child: SlideTransition(
+      position: Tween<Offset>(begin: const Offset(0, .07), end: Offset.zero)
+          .animate(
+            CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+          ),
+      child: widget.child,
+    ),
   );
 }
 
@@ -740,13 +816,6 @@ class _Loading extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       const NovellaLoadingIndicator(message: 'Curating your library');
-}
-
-class _Failure extends StatelessWidget {
-  const _Failure();
-  @override
-  Widget build(BuildContext context) =>
-      const Center(child: Text('Unable to load your books right now.'));
 }
 
 void _openDetail(BuildContext context, Book book) => Navigator.of(

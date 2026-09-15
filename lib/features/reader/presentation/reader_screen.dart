@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/widgets/novella_loading_indicator.dart';
+import '../../../core/widgets/friendly_error_state.dart';
 import '../application/reader_providers.dart';
 import '../application/reader_content_providers.dart';
 import '../../library/domain/book.dart';
@@ -47,11 +48,12 @@ class ReaderScreen extends ConsumerWidget {
                   loading: () => const NovellaLoadingIndicator(
                     message: 'Opening your book',
                   ),
-                  error: (_, __) => Center(
-                    child: Text(
-                      'Unable to load this book.',
-                      style: TextStyle(color: color),
-                    ),
+                  error: (error, _) => FriendlyErrorState(
+                    error: error,
+                    resourceName: 'book',
+                    dark: dark,
+                    onRetry: () =>
+                        ref.invalidate(firstChapterProvider(book.id)),
                   ),
                   data: (item) {
                     if (item == null)

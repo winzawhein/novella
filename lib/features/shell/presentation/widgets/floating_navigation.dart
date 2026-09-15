@@ -38,17 +38,23 @@ class FloatingNavigation extends StatelessWidget {
             onTap: () => onSelected(item),
             radius: 32,
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOutBack,
               width: active ? 65 : 50,
               height: active ? 65 : 50,
               decoration: BoxDecoration(
                 color: active ? Colors.black : Colors.transparent,
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                icons[item],
-                color: active ? Colors.white : const Color(0xFF9D9DA2),
-                size: 29,
+              child: AnimatedScale(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutBack,
+                scale: active ? 1 : .9,
+                child: Icon(
+                  icons[item],
+                  color: active ? Colors.white : const Color(0xFF9D9DA2),
+                  size: 29,
+                ),
               ),
             ),
           );
