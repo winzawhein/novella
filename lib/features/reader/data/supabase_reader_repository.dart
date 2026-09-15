@@ -1,0 +1,2 @@
+import 'package:supabase_flutter/supabase_flutter.dart'; import '../domain/book_chapter.dart';
+class SupabaseReaderRepository { SupabaseReaderRepository(this._client); final SupabaseClient _client; Future<BookChapter?> firstChapter(String bookId) async { final row = await _client.from('book_chapters').select('chapter_number, title, content').eq('book_id', bookId).order('chapter_number').limit(1).maybeSingle(); if (row == null) return null; return BookChapter(number: row['chapter_number'] as int, title: row['title'] as String, content: row['content'] as String); } }

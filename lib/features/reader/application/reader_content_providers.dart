@@ -1,0 +1,2 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart'; import 'package:supabase_flutter/supabase_flutter.dart'; import '../data/supabase_reader_repository.dart'; import '../domain/book_chapter.dart';
+final readerRepositoryProvider = Provider<SupabaseReaderRepository>((ref) => SupabaseReaderRepository(Supabase.instance.client)); final firstChapterProvider = FutureProvider.family<BookChapter?, String>((ref, bookId) => ref.watch(readerRepositoryProvider).firstChapter(bookId));
