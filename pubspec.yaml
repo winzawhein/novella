@@ -36,6 +36,9 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter_riverpod: ^3.0.3
   supabase_flutter: ^2.12.0
+  flutter_pdfview: ^1.4.5
+  http: ^1.6.0
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:

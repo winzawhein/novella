@@ -10,6 +10,7 @@ class Book {
     required this.accentColor,
     required this.progress,
     this.coverUrl,
+    this.fileUrl,
     this.description,
     this.rating = 0,
     this.reviewCount = 0,
@@ -22,6 +23,7 @@ class Book {
   final Color accentColor;
   final double progress;
   final String? coverUrl;
+  final String? fileUrl;
   final String? description;
   final double rating;
   final int reviewCount;
