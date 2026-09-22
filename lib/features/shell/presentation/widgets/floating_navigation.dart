@@ -17,16 +17,21 @@ class FloatingNavigation extends StatelessWidget {
       Icons.person_outline_rounded,
     ];
     return Container(
-      margin: const EdgeInsets.fromLTRB(24, 0, 24, 20),
-      height: 86,
+      margin: EdgeInsets.fromLTRB(
+        28,
+        0,
+        28,
+        12 + MediaQuery.paddingOf(context).bottom,
+      ),
+      height: 66,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(44),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x22000000),
-            blurRadius: 24,
-            offset: Offset(0, 10),
+            color: Color(0x14000000),
+            blurRadius: 20,
+            offset: Offset(0, 6),
           ),
         ],
       ),
@@ -39,9 +44,9 @@ class FloatingNavigation extends StatelessWidget {
             radius: 32,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOutBack,
-              width: active ? 65 : 50,
-              height: active ? 65 : 50,
+              curve: Curves.easeOutCubic,
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(
                 color: active ? Colors.black : Colors.transparent,
                 shape: BoxShape.circle,
@@ -53,7 +58,7 @@ class FloatingNavigation extends StatelessWidget {
                 child: Icon(
                   icons[item],
                   color: active ? Colors.white : const Color(0xFF9D9DA2),
-                  size: 29,
+                  size: 25,
                 ),
               ),
             ),

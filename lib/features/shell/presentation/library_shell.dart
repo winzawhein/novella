@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../library/presentation/library_screen.dart';
 import '../application/navigation_provider.dart';
 import 'reader_collection_screens.dart';
@@ -15,7 +16,9 @@ class LibraryShell extends ConsumerWidget {
       body: Stack(
         children: [
           AnimatedSwitcher(
-            duration: const Duration(milliseconds: 420),
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 300),
             switchInCurve: Curves.easeOutCubic,
             switchOutCurve: Curves.easeInCubic,
             transitionBuilder: (child, animation) => FadeTransition(
@@ -25,7 +28,10 @@ class LibraryShell extends ConsumerWidget {
                   begin: const Offset(.035, 0),
                   end: Offset.zero,
                 ).animate(animation),
-                child: child,
+                child: HeroMode(
+                  enabled: child.key == ValueKey(index),
+                  child: child,
+                ),
               ),
             ),
             child: KeyedSubtree(key: ValueKey(index), child: _tabFor(index)),

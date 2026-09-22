@@ -10,13 +10,22 @@ class SupabaseBookRepository implements BookRepository {
 
   @override
   Future<List<Book>> fetchLibrary() async {
-    final rows = await _client
-        .from('books')
-        .select(
-          'id, title, author, description, rating, review_count, cover_path, file_path',
-        )
-        .eq('is_published', true)
-        .order('created_at', ascending: false);
+    const fields =
+        'id, title, author, description, rating, review_count, cover_path, file_path';
+    List<Map<String, dynamic>> rows;
+    try {
+      rows = await _client
+          .from('books')
+          .select('$fields, genre')
+          .eq('is_published', true)
+          .order('created_at', ascending: false);
+    } catch (_) {
+      rows = await _client
+          .from('books')
+          .select(fields)
+          .eq('is_published', true)
+          .order('created_at', ascending: false);
+    }
     return rows.map((row) {
       final coverPath = row['cover_path'] as String?;
       final filePath = row['file_path'] as String?;
@@ -24,7 +33,9 @@ class SupabaseBookRepository implements BookRepository {
         id: row['id'] as String,
         title: row['title'] as String,
         author: row['author'] as String,
-        genre: 'Featured',
+        genre: (row['genre'] as String?)?.trim().isNotEmpty == true
+            ? (row['genre'] as String).trim()
+            : 'Other',
         coverColor: const Color(0xFF0B1133),
         accentColor: const Color(0xFFF1F1F2),
         progress: 0,

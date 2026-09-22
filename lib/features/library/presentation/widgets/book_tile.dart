@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../domain/book.dart';
 import 'book_cover.dart';
 
@@ -16,7 +17,10 @@ class BookTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          BookCover(book: book),
+          Hero(
+            tag: 'book-cover-${book.id}',
+            child: BookCover(book: book),
+          ),
           const SizedBox(height: 9),
           Text(
             book.title,
@@ -29,9 +33,8 @@ class BookTile extends StatelessWidget {
             book.author,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(fontSize: 11),
+            style: Theme.of(context).textTheme.bodyMedium
+                ?.copyWith(fontSize: 11),
           ),
         ],
       ),

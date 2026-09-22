@@ -98,9 +98,7 @@ class BookDetailScreen extends ConsumerWidget {
               shape: const CircleBorder(),
               child: IconButton(
                 onPressed: () {
-                  final saved = {...ref.read(savedBookIdsProvider)};
-                  isSaved ? saved.remove(book.id) : saved.add(book.id);
-                  ref.read(savedBookIdsProvider.notifier).state = saved;
+                  ref.read(savedBookIdsProvider.notifier).toggle(book.id);
                 },
                 icon: Icon(
                   isSaved ? Icons.favorite : Icons.favorite_border,
@@ -173,7 +171,10 @@ class _DetailHero extends StatelessWidget {
         Center(
           child: Padding(
             padding: const EdgeInsets.only(top: 48),
-            child: BookCover(book: book, width: 205, framed: false),
+            child: Hero(
+              tag: 'book-cover-${book.id}',
+              child: BookCover(book: book, width: 205, framed: false),
+            ),
           ),
         ),
       ],

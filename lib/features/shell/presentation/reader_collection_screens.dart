@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,6 +10,7 @@ import '../../library/domain/book.dart';
 import '../../library/presentation/widgets/book_cover.dart';
 import '../../reader/application/reader_providers.dart';
 import '../../reader/presentation/book_detail_screen.dart';
+import '../../profile/application/profile_providers.dart';
 
 const _ink = Color(0xFF16171D);
 const _muted = Color(0xFF7C7E89);
@@ -137,8 +140,12 @@ class ProfileScreen extends ConsumerWidget {
         .watch(libraryProvider)
         .maybeWhen(data: (items) => items, orElse: () => const <Book>[]);
     final saved = ref.watch(savedBookIdsProvider).length;
-    final current = ref.watch(selectedBookProvider);
-    final progress = ref.watch(readerProgressProvider);
+    final currentId = ref.watch(currentReadingBookIdProvider);
+    final current =
+        ref.watch(selectedBookProvider) ?? _bookWithId(books, currentId);
+    final progressByBook = ref.watch(readingProgressByBookProvider);
+    final progress = current == null ? 0.0 : progressByBook[current.id] ?? 0.0;
+    final profile = ref.watch(readerProfileProvider);
     return _Frame(
       child: ListView(
         padding: const EdgeInsets.fromLTRB(24, 0, 24, 132),
@@ -147,7 +154,15 @@ class ProfileScreen extends ConsumerWidget {
             child: _Header(
               eyebrow: 'ACCOUNT',
               title: 'Profile',
-              trailing: _RoundButton(icon: Icons.more_horiz_rounded),
+              trailing: _RoundButton(
+                icon: Icons.more_horiz_rounded,
+                onTap: () => showModalBottomSheet<void>(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => const _ProfileSettingsSheet(),
+                ),
+              ),
             ),
           ),
           _Entrance(
@@ -159,6 +174,8 @@ class ProfileScreen extends ConsumerWidget {
                   books: books.length,
                   saved: saved,
                   progress: current == null ? 0 : progress,
+                  name: profile.name,
+                  photoPath: profile.photoPath,
                 ),
               ],
             ),
@@ -296,15 +313,16 @@ class _Header extends StatelessWidget {
 }
 
 class _RoundButton extends StatelessWidget {
-  const _RoundButton({required this.icon});
+  const _RoundButton({required this.icon, this.onTap});
   final IconData icon;
+  final VoidCallback? onTap;
   @override
   Widget build(BuildContext context) => Material(
     color: Colors.white,
     shape: const CircleBorder(),
     child: InkWell(
       customBorder: const CircleBorder(),
-      onTap: () {},
+      onTap: onTap,
       child: SizedBox(width: 48, height: 48, child: Icon(icon, color: _ink)),
     ),
   );
@@ -422,7 +440,10 @@ class _BookCard extends ConsumerWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(13),
-              child: BookCover(book: book, width: 62),
+              child: Hero(
+                tag: 'book-cover-${book.id}',
+                child: BookCover(book: book, width: 62),
+              ),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -461,9 +482,7 @@ class _BookCard extends ConsumerWidget {
               IconButton(
                 tooltip: 'Remove from saved',
                 onPressed: () {
-                  final ids = {...ref.read(savedBookIdsProvider)}
-                    ..remove(book.id);
-                  ref.read(savedBookIdsProvider.notifier).state = ids;
+                  ref.read(savedBookIdsProvider.notifier).remove(book.id);
                 },
                 icon: const Icon(Icons.bookmark_rounded, color: _blue),
               )
@@ -578,10 +597,14 @@ class _ProfileHero extends StatelessWidget {
     required this.books,
     required this.saved,
     required this.progress,
+    required this.name,
+    required this.photoPath,
   });
   final int books;
   final int saved;
   final double progress;
+  final String name;
+  final String? photoPath;
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(20),
@@ -600,39 +623,44 @@ class _ProfileHero extends StatelessWidget {
     ),
     child: Column(
       children: [
-        const Row(
+        Row(
           children: [
             CircleAvatar(
               radius: 29,
               backgroundColor: Color(0xFFE0EAFE),
-              child: Icon(
-                Icons.person_rounded,
-                size: 34,
-                color: Color(0xFF1E5BC9),
-              ),
+              backgroundImage: photoPath == null
+                  ? null
+                  : FileImage(File(photoPath!)),
+              child: photoPath == null
+                  ? const Icon(
+                      Icons.person_rounded,
+                      size: 34,
+                      color: Color(0xFF1E5BC9),
+                    )
+                  : null,
             ),
-            SizedBox(width: 14),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Timmy',
-                    style: TextStyle(
+                    name,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  SizedBox(height: 3),
-                  Text(
+                  const SizedBox(height: 3),
+                  const Text(
                     'A thoughtful reader',
                     style: TextStyle(color: Color(0xFFB8C8F0)),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.verified_rounded, color: Color(0xFF8DB9FF)),
+            const Icon(Icons.verified_rounded, color: Color(0xFF8DB9FF)),
           ],
         ),
         const SizedBox(height: 22),
@@ -821,3 +849,162 @@ class _Loading extends StatelessWidget {
 void _openDetail(BuildContext context, Book book) => Navigator.of(
   context,
 ).push(MaterialPageRoute<void>(builder: (_) => BookDetailScreen(book: book)));
+
+Book? _bookWithId(List<Book> books, String? id) {
+  if (id == null) return null;
+  for (final book in books) {
+    if (book.id == id) return book;
+  }
+  return null;
+}
+
+class _ProfileSettingsSheet extends ConsumerStatefulWidget {
+  const _ProfileSettingsSheet();
+
+  @override
+  ConsumerState<_ProfileSettingsSheet> createState() =>
+      _ProfileSettingsSheetState();
+}
+
+class _ProfileSettingsSheetState extends ConsumerState<_ProfileSettingsSheet> {
+  late final TextEditingController _nameController;
+  bool _choosingPhoto = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(
+      text: ref.read(readerProfileProvider).name,
+    );
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _choosePhoto() async {
+    setState(() => _choosingPhoto = true);
+    try {
+      await ref.read(readerProfileProvider.notifier).choosePhoto();
+    } finally {
+      if (mounted) setState(() => _choosingPhoto = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = ref.watch(readerProfileProvider);
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 12,
+          right: 12,
+          bottom: MediaQuery.viewInsetsOf(context).bottom + 12,
+        ),
+        child: Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(28),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(22, 12, 22, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 38,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDDE0E7),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Edit profile',
+                  style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 18),
+                GestureDetector(
+                  onTap: _choosingPhoto ? null : _choosePhoto,
+                  child: Stack(
+                    children: [
+                      CircleAvatar(
+                        radius: 38,
+                        backgroundColor: const Color(0xFFE0EAFE),
+                        backgroundImage: profile.photoPath == null
+                            ? null
+                            : FileImage(File(profile.photoPath!)),
+                        child: profile.photoPath == null
+                            ? const Icon(
+                                Icons.person_rounded,
+                                size: 40,
+                                color: _blue,
+                              )
+                            : null,
+                      ),
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: CircleAvatar(
+                          radius: 14,
+                          backgroundColor: _blue,
+                          child: _choosingPhoto
+                              ? const SizedBox(
+                                  height: 14,
+                                  width: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.photo_camera_rounded,
+                                  size: 16,
+                                  color: Colors.white,
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextButton.icon(
+                  onPressed: _choosingPhoto ? null : _choosePhoto,
+                  icon: const Icon(Icons.photo_library_outlined),
+                  label: const Text('Choose profile photo'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _nameController,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    labelText: 'Display name',
+                    prefixIcon: Icon(Icons.person_outline_rounded),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                FilledButton(
+                  onPressed: () async {
+                    await ref
+                        .read(readerProfileProvider.notifier)
+                        .updateName(_nameController.text);
+                    if (context.mounted) Navigator.of(context).pop();
+                  },
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                    backgroundColor: _blue,
+                    shape: const StadiumBorder(),
+                  ),
+                  child: const Text('Save changes'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
