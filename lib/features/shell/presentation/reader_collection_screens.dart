@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import '../../../core/widgets/app_preferences.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,8 +10,8 @@ import '../../../core/widgets/friendly_error_state.dart';
 import '../../library/application/library_providers.dart';
 import '../../library/domain/book.dart';
 import '../../library/presentation/widgets/book_cover.dart';
-import '../../reader/application/reader_providers.dart';
 import '../../reader/presentation/book_detail_screen.dart';
+import '../../reader/presentation/reader_screen.dart';
 import '../../profile/application/profile_providers.dart';
 
 const _ink = Color(0xFF16171D);
@@ -22,8 +24,15 @@ class MyLibraryScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final library = ref.watch(libraryProvider);
-    final current = ref.watch(selectedBookProvider);
-    final progress = ref.watch(readerProgressProvider);
+    final books = library.maybeWhen(
+      data: (items) => items,
+      orElse: () => const <Book>[],
+    );
+    final currentId = ref.watch(currentReadingBookIdProvider);
+    final current =
+        ref.watch(selectedBookProvider) ?? _bookWithId(books, currentId);
+    final progressByBook = ref.watch(readingProgressByBookProvider);
+    final progress = current == null ? 0.0 : progressByBook[current.id] ?? 0.0;
     return _Frame(
       child: library.when(
         loading: () => const _Loading(),
@@ -62,7 +71,7 @@ class MyLibraryScreen extends ConsumerWidget {
                 separatorBuilder: (_, _) => const SizedBox(height: 10),
                 itemBuilder: (_, index) => _BookCard(
                   book: books[index],
-                  progress: current?.id == books[index].id ? progress : null,
+                  progress: progressByBook[books[index].id],
                 ),
               ),
             ),
@@ -333,90 +342,100 @@ class _ContinueCard extends StatelessWidget {
   final Book book;
   final double progress;
   @override
-  Widget build(BuildContext context) => InkWell(
+  Widget build(BuildContext context) => Material(
+    color: const Color(0xFF173D80),
     borderRadius: BorderRadius.circular(28),
-    onTap: () => _openDetail(context, book),
-    child: Ink(
-      height: 178,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1B72E9), Color(0xFF1551B9)],
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x351477FA),
-            blurRadius: 25,
-            offset: Offset(0, 14),
+    clipBehavior: Clip.antiAlias,
+    child: InkWell(
+      borderRadius: BorderRadius.circular(28),
+      onTap: () => Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => ReaderScreen(book: book))),
+      child: Ink(
+        height: 178 * MediaQuery.textScalerOf(context).scale(1).clamp(1, 1.6),
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(28),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF173D80), Color(0xFF2368CF)],
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          BookCover(book: book, width: 92),
-          const SizedBox(width: 17),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'CONTINUE READING',
-                  style: TextStyle(
-                    color: Color(0xFFDCEBFF),
-                    fontWeight: FontWeight.w800,
-                    fontSize: 10,
-                    letterSpacing: 1.05,
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x351477FA),
+              blurRadius: 25,
+              offset: Offset(0, 14),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: BookCover(book: book, width: 76, framed: false),
+            ),
+            const SizedBox(width: 17),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'CONTINUE READING',
+                    style: TextStyle(
+                      color: Color(0xFFDCEBFF),
+                      fontWeight: FontWeight.w800,
+                      fontSize: 10,
+                      letterSpacing: 1.05,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 7),
-                Text(
-                  book.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 19,
-                    height: 1.06,
-                    fontWeight: FontWeight.w800,
+                  const SizedBox(height: 7),
+                  Text(
+                    book.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 19,
+                      height: 1.35,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                ),
-                const Spacer(),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: LinearProgressIndicator(
-                          value: progress,
-                          minHeight: 6,
-                          backgroundColor: Colors.white24,
-                          color: Colors.white,
+                  const Spacer(),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: LinearProgressIndicator(
+                            value: progress.clamp(0, 1),
+                            minHeight: 6,
+                            backgroundColor: Colors.white24,
+                            color: const Color(0xFF9DDEFF),
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 9),
-                    Text(
-                      '${(progress * 100).round()}%',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
+                      const SizedBox(width: 9),
+                      Text(
+                        '${(progress * 100).round()}%',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 2),
-          const Icon(
-            Icons.play_circle_fill_rounded,
-            color: Colors.white,
-            size: 31,
-          ),
-        ],
+            const SizedBox(width: 2),
+            const Icon(
+              Icons.play_circle_fill_rounded,
+              color: Colors.white,
+              size: 38,
+            ),
+          ],
+        ),
       ),
     ),
   );
@@ -759,17 +778,16 @@ class _ActivityCard extends StatelessWidget {
 class _Preferences extends StatelessWidget {
   const _Preferences();
   @override
-  Widget build(BuildContext context) => Container(
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(22),
-    ),
+  Widget build(BuildContext context) => Material(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(22),
+    clipBehavior: Clip.antiAlias,
     child: const Column(
       children: [
         _Preference(
           icon: Icons.format_size_rounded,
           title: 'Reading appearance',
-          subtitle: 'Text size and theme',
+          subtitle: 'App text size',
         ),
         Divider(height: 1, indent: 72),
         _Preference(
@@ -800,6 +818,23 @@ class _Preference extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ListTile(
     dense: true,
+    onTap: () {
+      if (icon == Icons.format_size_rounded) {
+        showAppAppearance(context);
+      } else if (icon == Icons.notifications_none_rounded) {
+        showAppNotice(
+          context,
+          'Reading reminders',
+          'Scheduled phone reminders are not available in this version. No reminder is currently scheduled.',
+        );
+      } else {
+        showAppNotice(
+          context,
+          'Reading help',
+          'Save a book with the bookmark button. Continue reading resumes your last page. Use A− / A+ for PDF zoom, or Text size for app text. If a book fails to load, check your connection and try again.',
+        );
+      }
+    },
     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
     leading: CircleAvatar(
       backgroundColor: const Color(0xFFF0F6FF),

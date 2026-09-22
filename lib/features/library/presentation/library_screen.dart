@@ -2,6 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
+
+import '../../notifications/presentation/notifications_screen.dart';
 
 import '../../../core/widgets/novella_loading_indicator.dart';
 import '../../../core/widgets/friendly_error_state.dart';
@@ -12,6 +15,9 @@ import '../application/library_providers.dart';
 import '../domain/book.dart';
 import 'widgets/book_tile.dart';
 
+final _searchQuery = StateProvider.autoDispose<String>((ref) => '');
+final _searchFocused = StateProvider.autoDispose<bool>((ref) => false);
+
 class LibraryScreen extends ConsumerWidget {
   const LibraryScreen({super.key});
 
@@ -19,8 +25,10 @@ class LibraryScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final library = ref.watch(libraryProvider);
     final selectedGenre = ref.watch(selectedGenreProvider);
+    final query = ref.watch(_searchQuery).trim().toLowerCase();
     final profile = ref.watch(readerProfileProvider);
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final searchFocused = ref.watch(_searchFocused);
     return library.when(
       loading: () => const NovellaLoadingIndicator(),
       error: (error, _) => FriendlyErrorState(
@@ -32,9 +40,15 @@ class LibraryScreen extends ConsumerWidget {
           'All',
           ...books.map((book) => book.genre),
         }.toList();
-        final visibleBooks = selectedGenre == 'All'
-            ? books
-            : books.where((book) => book.genre == selectedGenre).toList();
+        final visibleBooks = books
+            .where(
+              (book) =>
+                  (selectedGenre == 'All' || book.genre == selectedGenre) &&
+                  '${book.title} ${book.author} ${book.genre}'
+                      .toLowerCase()
+                      .contains(query),
+            )
+            .toList();
         return Stack(
           children: [
             const Positioned(top: 302, left: 112, child: _BlueGlow()),
@@ -44,6 +58,8 @@ class LibraryScreen extends ConsumerWidget {
                 _HomeHeader(
                   profileName: profile.name,
                   photoPath: profile.photoPath,
+                  onSearch: (value) =>
+                      ref.read(_searchQuery.notifier).state = value,
                 ),
                 _GenrePicker(genres: genres),
                 Padding(
@@ -55,6 +71,13 @@ class LibraryScreen extends ConsumerWidget {
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                   ),
                 ),
+                if (visibleBooks.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(28),
+                    child: Text(
+                      'No books found. Try a different title or author.',
+                    ),
+                  ),
                 SizedBox(
                   height: 275,
                   child: ListView.separated(
@@ -68,20 +91,10 @@ class LibraryScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(28, 10, 28, 180),
-                  child: Text(
-                    'Trending now',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF9D9DA2),
-                    ),
-                  ),
-                ),
+                const SizedBox(height: 180),
               ],
             ),
-            if (!keyboardOpen)
+            if (!keyboardOpen && query.isEmpty && !searchFocused)
               Positioned(
                 right: 24,
                 bottom: 90 + MediaQuery.paddingOf(context).bottom,
@@ -101,16 +114,21 @@ class LibraryScreen extends ConsumerWidget {
   }
 }
 
-class _HomeHeader extends StatefulWidget {
-  const _HomeHeader({required this.profileName, this.photoPath});
+class _HomeHeader extends ConsumerStatefulWidget {
+  const _HomeHeader({
+    required this.profileName,
+    this.photoPath,
+    required this.onSearch,
+  });
+  final ValueChanged<String> onSearch;
   final String profileName;
   final String? photoPath;
 
   @override
-  State<_HomeHeader> createState() => _HomeHeaderState();
+  ConsumerState<_HomeHeader> createState() => _HomeHeaderState();
 }
 
-class _HomeHeaderState extends State<_HomeHeader>
+class _HomeHeaderState extends ConsumerState<_HomeHeader>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
@@ -145,11 +163,9 @@ class _HomeHeaderState extends State<_HomeHeader>
               ),
               const Spacer(),
               _ScanButton(
-                onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Cover scanner is ready. Camera scanning is coming next.',
-                    ),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const NotificationsScreen(),
                   ),
                 ),
               ),
@@ -182,15 +198,20 @@ class _HomeHeaderState extends State<_HomeHeader>
             ),
           ),
           const SizedBox(height: 28),
-          const TextField(
-            decoration: InputDecoration(
-              prefixIcon: Icon(Icons.search),
-              hintText: 'Search books',
-              filled: true,
-              fillColor: Color(0xFFF4F4F5),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(28)),
-                borderSide: BorderSide.none,
+          Focus(
+            onFocusChange: (focused) =>
+                ref.read(_searchFocused.notifier).state = focused,
+            child: TextField(
+              onChanged: widget.onSearch,
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.search),
+                hintText: 'Search books',
+                filled: true,
+                fillColor: Color(0xFFF4F4F5),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(28)),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
           ),
@@ -286,17 +307,18 @@ class _ScanButtonState extends State<_ScanButton>
               alignment: Alignment.center,
               children: [
                 const Icon(
-                  Icons.document_scanner_rounded,
+                  Icons.notifications_none_rounded,
                   color: Color(0xFF1477FA),
                 ),
                 Positioned(
-                  top: 11 + (_controller.value * 25),
-                  left: 13,
-                  right: 13,
+                  top: 10,
+                  right: 12,
                   child: Container(
-                    height: 1.5,
+                    height: 5,
+                    width: 5,
                     decoration: BoxDecoration(
                       color: const Color(0xFF1477FA).withValues(alpha: .8),
+                      shape: BoxShape.circle,
                       boxShadow: const [
                         BoxShadow(color: Color(0x661477FA), blurRadius: 4),
                       ],

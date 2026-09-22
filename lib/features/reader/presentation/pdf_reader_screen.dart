@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -166,99 +167,108 @@ class _PdfReaderScreenState extends ConsumerState<PdfReaderScreen> {
     final saved = ref.watch(savedBookIdsProvider).contains(widget.book.id);
     final displayPage = _scrubPage ?? _page;
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: FutureBuilder<File>(
-          future: _pdfFile,
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return FriendlyErrorState(
-                error: snapshot.error!,
-                resourceName: 'PDF',
-                onRetry: _retry,
-              );
-            }
-            if (!snapshot.hasData) {
-              return const NovellaLoadingIndicator(
-                message: 'Preparing your PDF',
-              );
-            }
-            if (_viewerError != null) {
-              return FriendlyErrorState(
-                error: _viewerError!,
-                resourceName: 'PDF',
-                onRetry: _retry,
-              );
-            }
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.black,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.black,
+        systemNavigationBarIconBrightness: Brightness.light,
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: SafeArea(
+          child: FutureBuilder<File>(
+            future: _pdfFile,
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return FriendlyErrorState(
+                  error: snapshot.error!,
+                  resourceName: 'PDF',
+                  onRetry: _retry,
+                );
+              }
+              if (!snapshot.hasData) {
+                return const NovellaLoadingIndicator(
+                  message: 'Preparing your PDF',
+                );
+              }
+              if (_viewerError != null) {
+                return FriendlyErrorState(
+                  error: _viewerError!,
+                  resourceName: 'PDF',
+                  onRetry: _retry,
+                );
+              }
 
-            return Stack(
-              children: [
-                if (Platform.isAndroid)
-                  Positioned.fill(
-                    top: 76,
-                    bottom: 90,
-                    child: CurlPdfView(
-                      key: _curlKey,
-                      path: snapshot.data!.path,
-                      bookId: widget.book.id,
-                      onTouch: _revealChrome,
-                      onError: (error) {
-                        if (mounted) {
-                          setState(() => _viewerError = error.toString());
-                        }
+              return Stack(
+                children: [
+                  if (Platform.isAndroid)
+                    Positioned.fill(
+                      top: 76,
+                      bottom: 90,
+                      child: CurlPdfView(
+                        key: _curlKey,
+                        path: snapshot.data!.path,
+                        bookId: widget.book.id,
+                        onTouch: _revealChrome,
+                        onError: (error) {
+                          if (mounted) {
+                            setState(() => _viewerError = error.toString());
+                          }
+                        },
+                        onPage: (page, count) {
+                          if (!mounted) return;
+                          _pages = count;
+                          _ready = true;
+                          _recordPage(page);
+                        },
+                      ),
+                    )
+                  else
+                    PDFView(
+                      filePath: snapshot.data!.path,
+                      swipeHorizontal: true,
+                      onViewCreated: (controller) {
+                        _controller = controller;
+                        _restoreStoredPdfPage();
                       },
-                      onPage: (page, count) {
-                        if (!mounted) return;
-                        _pages = count;
-                        _ready = true;
-                        _recordPage(page);
+                      onRender: (pages) {
+                        setState(() {
+                          _pages = pages ?? 0;
+                          _ready = true;
+                        });
+                        _restoreStoredPdfPage();
                       },
+                      onPageChanged: (page, _) => _recordPage(page ?? 0),
                     ),
-                  )
-                else
-                  PDFView(
-                    filePath: snapshot.data!.path,
-                    swipeHorizontal: true,
-                    onViewCreated: (controller) {
-                      _controller = controller;
-                      _restoreStoredPdfPage();
+                  _AppleChrome(
+                    imageForPage: (page) =>
+                        _curlKey.currentState?.imageForPage(page),
+                    visible: _showChrome,
+                    saved: saved,
+                    page: displayPage,
+                    totalPages: _pages,
+                    zoom: _zoom,
+                    onBack: () => Navigator.of(context).pop(),
+                    onContents: _showContents,
+                    onSave: _toggleSaved,
+                    onSmaller: _zoom <= 1 ? null : () => _changeZoom(-.25),
+                    onReset: _zoom == 1 ? null : _resetZoom,
+                    onLarger: _zoom >= 4 ? null : () => _changeZoom(.25),
+                    onScrub: (value) {
+                      setState(() => _scrubPage = value.round());
+                      _revealChrome();
                     },
-                    onRender: (pages) {
-                      setState(() {
-                        _pages = pages ?? 0;
-                        _ready = true;
-                      });
-                      _restoreStoredPdfPage();
-                    },
-                    onPageChanged: (page, _) => _recordPage(page ?? 0),
+                    onScrubEnd: (value) => _goToPage(value.round()),
+                    onThumbnailTap: _goToPage,
                   ),
-                _AppleChrome(
-                  imageForPage: (page) =>
-                      _curlKey.currentState?.imageForPage(page),
-                  visible: _showChrome,
-                  saved: saved,
-                  page: displayPage,
-                  totalPages: _pages,
-                  zoom: _zoom,
-                  onBack: () => Navigator.of(context).pop(),
-                  onContents: _showContents,
-                  onSave: _toggleSaved,
-                  onSmaller: _zoom <= 1 ? null : () => _changeZoom(-.25),
-                  onReset: _zoom == 1 ? null : _resetZoom,
-                  onLarger: _zoom >= 4 ? null : () => _changeZoom(.25),
-                  onScrub: (value) {
-                    setState(() => _scrubPage = value.round());
-                    _revealChrome();
-                  },
-                  onScrubEnd: (value) => _goToPage(value.round()),
-                  onThumbnailTap: _goToPage,
-                ),
-                if (!_ready)
-                  const NovellaLoadingIndicator(message: 'Opening your PDF'),
-              ],
-            );
-          },
+                  if (!_ready)
+                    const NovellaLoadingIndicator(message: 'Opening your PDF'),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
