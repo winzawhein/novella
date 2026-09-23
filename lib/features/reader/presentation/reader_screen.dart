@@ -1,4 +1,7 @@
 import 'dart:async';
+
+import '../../auth/auth_screen.dart';
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -15,16 +18,24 @@ import 'pdf_reader_screen.dart';
 
 /// A distraction-free, page-style reader for text chapters.
 /// PDFs keep their native page rendering in [PdfReaderScreen].
-class ReaderScreen extends ConsumerStatefulWidget {
+class ReaderScreen extends StatelessWidget {
   const ReaderScreen({super.key, required this.book});
+  final Book book;
+  @override
+  Widget build(BuildContext context) =>
+      AccountGate(child: _AuthenticatedReader(book: book));
+}
+
+class _AuthenticatedReader extends ConsumerStatefulWidget {
+  const _AuthenticatedReader({required this.book});
 
   final Book book;
 
   @override
-  ConsumerState<ReaderScreen> createState() => _ReaderScreenState();
+  ConsumerState<_AuthenticatedReader> createState() => _ReaderScreenState();
 }
 
-class _ReaderScreenState extends ConsumerState<ReaderScreen> {
+class _ReaderScreenState extends ConsumerState<_AuthenticatedReader> {
   late final PageController _pageController;
   Timer? _controlsTimer;
   bool _showPageControls = true;
@@ -94,7 +105,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.book.fileUrl?.toLowerCase().endsWith('.pdf') ?? false) {
+    if (widget.book.localPath != null ||
+        (widget.book.fileUrl?.toLowerCase().endsWith('.pdf') ?? false)) {
       return PdfReaderScreen(book: widget.book);
     }
 

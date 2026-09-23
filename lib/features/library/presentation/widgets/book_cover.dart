@@ -37,8 +37,13 @@ class BookCover extends StatelessWidget {
             ),
             child: Stack(
               children: [
-                const Positioned(top: 11, right: 11, child: _RatingBadge()),
                 Center(child: art),
+                if (book.rating > 0)
+                  Positioned(
+                    top: 11,
+                    right: 11,
+                    child: _RatingBadge(rating: book.rating),
+                  ),
               ],
             ),
           )
@@ -47,7 +52,8 @@ class BookCover extends StatelessWidget {
 }
 
 class _RatingBadge extends StatelessWidget {
-  const _RatingBadge();
+  const _RatingBadge({required this.rating});
+  final double rating;
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
@@ -55,12 +61,15 @@ class _RatingBadge extends StatelessWidget {
       color: Colors.white,
       borderRadius: BorderRadius.circular(12),
     ),
-    child: const Row(
+    child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(Icons.star, color: Color(0xFFFFC542), size: 10),
         SizedBox(width: 2),
-        Text('4.9', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700)),
+        Text(
+          rating.toStringAsFixed(1),
+          style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700),
+        ),
       ],
     ),
   );

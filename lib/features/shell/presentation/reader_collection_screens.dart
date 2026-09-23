@@ -1,5 +1,9 @@
 import 'dart:io';
 
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../auth/auth_screen.dart';
+
 import '../../../core/widgets/app_preferences.dart';
 
 import 'package:flutter/material.dart';
@@ -9,6 +13,7 @@ import '../../../core/widgets/novella_loading_indicator.dart';
 import '../../../core/widgets/friendly_error_state.dart';
 import '../../library/application/library_providers.dart';
 import '../../library/domain/book.dart';
+import '../../library/presentation/device_library_screen.dart';
 import '../../library/presentation/widgets/book_cover.dart';
 import '../../reader/presentation/book_detail_screen.dart';
 import '../../reader/presentation/reader_screen.dart';
@@ -34,52 +39,145 @@ class MyLibraryScreen extends ConsumerWidget {
     final progressByBook = ref.watch(readingProgressByBookProvider);
     final progress = current == null ? 0.0 : progressByBook[current.id] ?? 0.0;
     return _Frame(
-      child: library.when(
-        loading: () => const _Loading(),
-        error: (error, _) => FriendlyErrorState(
-          error: error,
-          onRetry: () => ref.invalidate(libraryProvider),
-        ),
-        data: (books) => CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: _Header(
-                eyebrow: 'YOUR SPACE',
-                title: 'My library',
-                trailing: _RoundButton(icon: Icons.tune_rounded),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            child: const _ImportPdfCard(),
+          ),
+          Expanded(
+            child: library.when(
+              loading: () => const _Loading(),
+              error: (error, _) => FriendlyErrorState(
+                error: error,
+                onRetry: () => ref.invalidate(libraryProvider),
+              ),
+              data: (books) => CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: _Header(
+                      eyebrow: 'YOUR SPACE',
+                      title: 'My library',
+                      trailing: _RoundButton(icon: Icons.tune_rounded),
+                    ),
+                  ),
+                  if (current != null)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 14, 24, 32),
+                        child: _ContinueCard(book: current, progress: progress),
+                      ),
+                    )
+                  else
+                    const SliverToBoxAdapter(child: SizedBox(height: 20)),
+                  SliverToBoxAdapter(
+                    child: _SectionTitle(
+                      title: 'Your collection',
+                      detail: '${books.length} books',
+                    ),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(24, 14, 24, 132),
+                    sliver: SliverList.separated(
+                      itemCount: books.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 10),
+                      itemBuilder: (_, index) => _BookCard(
+                        book: books[index],
+                        progress: progressByBook[books[index].id],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            if (current != null)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 14, 24, 32),
-                  child: _ContinueCard(book: current, progress: progress),
-                ),
-              )
-            else
-              const SliverToBoxAdapter(child: SizedBox(height: 20)),
-            SliverToBoxAdapter(
-              child: _SectionTitle(
-                title: 'Your collection',
-                detail: '${books.length} books',
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(24, 14, 24, 132),
-              sliver: SliverList.separated(
-                itemCount: books.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 10),
-                itemBuilder: (_, index) => _BookCard(
-                  book: books[index],
-                  progress: progressByBook[books[index].id],
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
+}
+
+class _ImportPdfCard extends StatelessWidget {
+  const _ImportPdfCard();
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: 'Import PDF. Open your device bookshelf',
+    child: Material(
+      color: const Color(0xFF126DE0),
+      borderRadius: BorderRadius.circular(24),
+      clipBehavior: Clip.antiAlias,
+      child: Ink(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF154D99), Color(0xFF008CFF)],
+          ),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: const Color(0x55FFFFFF)),
+        ),
+        child: InkWell(
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const DeviceLibraryScreen(),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0x26FFFFFF),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0x44FFFFFF)),
+                  ),
+                  child: const Icon(
+                    Icons.upload_file_rounded,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Import PDF',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Your private bookshelf · Up to 5 books',
+                        style: TextStyle(
+                          color: Color(0xDDFFFFFF),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(
+                  Icons.arrow_forward_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class SavedScreen extends ConsumerWidget {
@@ -155,13 +253,69 @@ class ProfileScreen extends ConsumerWidget {
     final progressByBook = ref.watch(readingProgressByBookProvider);
     final progress = current == null ? 0.0 : progressByBook[current.id] ?? 0.0;
     final profile = ref.watch(readerProfileProvider);
+    final signedIn = ref.watch(signedInProvider);
+    if (!signedIn) {
+      return _Frame(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(24, 28, 24, 132),
+          children: [
+            const Text(
+              'Welcome to Novella',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
+                color: _ink,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Material(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(28),
+              child: Padding(
+                padding: const EdgeInsets.all(28),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Icon(
+                      Icons.auto_stories_rounded,
+                      size: 56,
+                      color: _blue,
+                    ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Your next chapter starts here',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 23,
+                        fontWeight: FontWeight.w700,
+                        color: _ink,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Browse books as a guest. Create an account or sign in to read and save your favourites.',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                    FilledButton(
+                      onPressed: () => requireAccount(context),
+                      child: const Text('Create account / Sign in'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     return _Frame(
       child: ListView(
         padding: const EdgeInsets.fromLTRB(24, 0, 24, 132),
         children: [
           _Entrance(
             child: _Header(
-              eyebrow: 'ACCOUNT',
+              eyebrow: signedIn ? 'YOUR ACCOUNT' : 'GUEST PROFILE',
               title: 'Profile',
               trailing: _RoundButton(
                 icon: Icons.more_horiz_rounded,
@@ -185,6 +339,10 @@ class ProfileScreen extends ConsumerWidget {
                   progress: current == null ? 0 : progress,
                   name: profile.name,
                   photoPath: profile.photoPath,
+                  account:
+                      Supabase.instance.client.auth.currentUser?.email ??
+                      Supabase.instance.client.auth.currentUser?.phone ??
+                      'Signed in',
                 ),
               ],
             ),
@@ -618,12 +776,14 @@ class _ProfileHero extends StatelessWidget {
     required this.progress,
     required this.name,
     required this.photoPath,
+    required this.account,
   });
   final int books;
   final int saved;
   final double progress;
   final String name;
   final String? photoPath;
+  final String account;
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(20),
@@ -672,14 +832,16 @@ class _ProfileHero extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 3),
-                  const Text(
-                    'A thoughtful reader',
-                    style: TextStyle(color: Color(0xFFB8C8F0)),
+                  Text(
+                    account,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Color(0xFFB8C8F0)),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.verified_rounded, color: Color(0xFF8DB9FF)),
+            const Icon(Icons.account_circle_outlined, color: Color(0xFF8DB9FF)),
           ],
         ),
         const SizedBox(height: 22),
@@ -904,6 +1066,7 @@ class _ProfileSettingsSheet extends ConsumerStatefulWidget {
 class _ProfileSettingsSheetState extends ConsumerState<_ProfileSettingsSheet> {
   late final TextEditingController _nameController;
   bool _choosingPhoto = false;
+  bool _saving = false;
 
   @override
   void initState() {
@@ -1022,18 +1185,59 @@ class _ProfileSettingsSheetState extends ConsumerState<_ProfileSettingsSheet> {
                 ),
                 const SizedBox(height: 18),
                 FilledButton(
-                  onPressed: () async {
-                    await ref
-                        .read(readerProfileProvider.notifier)
-                        .updateName(_nameController.text);
-                    if (context.mounted) Navigator.of(context).pop();
-                  },
+                  onPressed: _saving
+                      ? null
+                      : () async {
+                          setState(() => _saving = true);
+                          try {
+                            await ref
+                                .read(readerProfileProvider.notifier)
+                                .updateName(_nameController.text);
+                            if (context.mounted) Navigator.of(context).pop();
+                          } catch (_) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Could not save your name. Check your connection and try again.',
+                                  ),
+                                ),
+                              );
+                            }
+                          } finally {
+                            if (mounted) setState(() => _saving = false);
+                          }
+                        },
                   style: FilledButton.styleFrom(
                     minimumSize: const Size.fromHeight(52),
                     backgroundColor: _blue,
                     shape: const StadiumBorder(),
                   ),
-                  child: const Text('Save changes'),
+                  child: Text(_saving ? 'Saving…' : 'Save changes'),
+                ),
+                TextButton.icon(
+                  icon: const Icon(Icons.logout_rounded),
+                  label: const Text('Sign out'),
+                  onPressed: _saving
+                      ? null
+                      : () async {
+                          try {
+                            await Supabase.instance.client.auth.signOut(
+                              scope: SignOutScope.local,
+                            );
+                            if (context.mounted) Navigator.of(context).pop();
+                          } catch (_) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Could not sign out. Try again.',
+                                  ),
+                                ),
+                              );
+                            }
+                          }
+                        },
                 ),
               ],
             ),

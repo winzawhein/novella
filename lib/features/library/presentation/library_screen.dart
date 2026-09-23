@@ -51,48 +51,74 @@ class LibraryScreen extends ConsumerWidget {
             .toList();
         return Stack(
           children: [
-            const Positioned(top: 302, left: 112, child: _BlueGlow()),
-            ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                _HomeHeader(
-                  profileName: profile.name,
-                  photoPath: profile.photoPath,
-                  onSearch: (value) =>
-                      ref.read(_searchQuery.notifier).state = value,
-                ),
-                _GenrePicker(genres: genres),
-                Padding(
-                  padding: EdgeInsets.fromLTRB(28, 25, 28, 16),
-                  child: Text(
-                    selectedGenre == 'All'
-                        ? 'All books'
-                        : '$selectedGenre books',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            RefreshIndicator.adaptive(
+              color: const Color(0xFF1477FA),
+              backgroundColor: Colors.white,
+              displacement: 56,
+              edgeOffset: MediaQuery.paddingOf(context).top,
+              onRefresh: () async {
+                try {
+                  ref.invalidate(libraryProvider);
+                  await ref.read(libraryProvider.future);
+                } catch (_) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Could not refresh books. Please try again.',
+                        ),
+                      ),
+                    );
+                  }
+                }
+              },
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.zero,
+                children: [
+                  _HomeHeader(
+                    profileName: profile.name,
+                    photoPath: profile.photoPath,
+                    onSearch: (value) =>
+                        ref.read(_searchQuery.notifier).state = value,
                   ),
-                ),
-                if (visibleBooks.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(28),
+                  _GenrePicker(genres: genres),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(28, 25, 28, 16),
                     child: Text(
-                      'No books found. Try a different title or author.',
+                      selectedGenre == 'All'
+                          ? 'All books'
+                          : '$selectedGenre books',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
-                SizedBox(
-                  height: 275,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 28),
-                    scrollDirection: Axis.horizontal,
-                    itemCount: visibleBooks.length,
-                    separatorBuilder: (_, _) => const SizedBox(width: 16),
-                    itemBuilder: (context, index) => BookTile(
-                      book: visibleBooks[index],
-                      onTap: () => _openBook(context, ref, visibleBooks[index]),
+                  if (visibleBooks.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(28),
+                      child: Text(
+                        'No books found. Try a different title or author.',
+                      ),
+                    ),
+                  SizedBox(
+                    height: 275,
+                    child: ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 28),
+                      scrollDirection: Axis.horizontal,
+                      itemCount: visibleBooks.length,
+                      separatorBuilder: (_, _) => const SizedBox(width: 16),
+                      itemBuilder: (context, index) => BookTile(
+                        book: visibleBooks[index],
+                        onTap: () =>
+                            _openBook(context, ref, visibleBooks[index]),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 180),
-              ],
+                  const SizedBox(height: 180),
+                ],
+              ),
             ),
             if (!keyboardOpen && query.isEmpty && !searchFocused)
               Positioned(
@@ -427,21 +453,4 @@ Book? _bookWithId(List<Book> books, String? id) {
     if (book.id == id) return book;
   }
   return null;
-}
-
-class _BlueGlow extends StatelessWidget {
-  const _BlueGlow();
-  @override
-  Widget build(BuildContext context) => IgnorePointer(
-    child: Container(
-      width: 160,
-      height: 120,
-      decoration: const BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: RadialGradient(
-          colors: [Color(0x553B9BFF), Color(0x003B9BFF)],
-        ),
-      ),
-    ),
-  );
 }

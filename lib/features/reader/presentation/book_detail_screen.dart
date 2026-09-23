@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../../auth/auth_screen.dart';
+
 import 'dart:ui';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/widgets/library_ad.dart';
 
 import '../../library/application/library_providers.dart';
 import '../../library/domain/book.dart';
@@ -23,6 +27,12 @@ class BookDetailScreen extends ConsumerWidget {
         statusBarBrightness: Brightness.dark,
       ),
       child: Scaffold(
+        // A dedicated footer keeps the ad outside the scrolling content and
+        // below the reading button's separate body area (no overlapping taps).
+        bottomNavigationBar: const SafeArea(
+          top: false,
+          child: Padding(padding: EdgeInsets.only(top: 16), child: LibraryAd()),
+        ),
         body: Stack(
           children: [
             CustomScrollView(
@@ -70,12 +80,14 @@ class BookDetailScreen extends ConsumerWidget {
                             ),
                             SizedBox(width: 8),
                             Text(
-                              book.rating.toStringAsFixed(1),
+                              book.rating > 0
+                                  ? book.rating.toStringAsFixed(1)
+                                  : 'Not rated',
                               style: TextStyle(fontWeight: FontWeight.w700),
                             ),
                             SizedBox(width: 18),
                             Text(
-                              'Mostly Positive (${book.reviewCount} Reviews)',
+                              '${book.reviewCount} reviews',
                               style: TextStyle(fontSize: 13),
                             ),
                           ],
@@ -111,7 +123,10 @@ class BookDetailScreen extends ConsumerWidget {
                 color: const Color(0xFFF46563),
                 shape: const CircleBorder(),
                 child: IconButton(
-                  onPressed: () {
+                  onPressed: () async {
+                    if (!await requireAccount(context) || !context.mounted) {
+                      return;
+                    }
                     ref.read(savedBookIdsProvider.notifier).toggle(book.id);
                   },
                   icon: Icon(
@@ -206,7 +221,8 @@ class _DetailHero extends ConsumerWidget {
           child: PopupMenuButton<String>(
             tooltip: 'Book options',
             icon: const Icon(Icons.more_vert, color: Colors.white),
-            onSelected: (value) {
+            onSelected: (value) async {
+              if (!await requireAccount(context) || !context.mounted) return;
               if (value == 'save') {
                 ref.read(savedBookIdsProvider.notifier).toggle(book.id);
               }

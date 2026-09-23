@@ -66,6 +66,15 @@ class _PdfReaderScreenState extends ConsumerState<PdfReaderScreen> {
   }
 
   Future<File> _downloadPdf() async {
+    if (widget.book.localPath != null) {
+      final local = File(widget.book.localPath!);
+      if (!await local.exists()) {
+        throw const FileSystemException(
+          'Imported PDF is missing. Import it again.',
+        );
+      }
+      return local;
+    }
     final directory = await getApplicationDocumentsDirectory();
     final cacheDirectory = Directory('${directory.path}/pdf-cache');
     if (!await cacheDirectory.exists()) await cacheDirectory.create();
@@ -126,6 +135,14 @@ class _PdfReaderScreenState extends ConsumerState<PdfReaderScreen> {
   }
 
   void _toggleSaved() {
+    if (widget.book.localPath != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This PDF is already saved in On this device.'),
+        ),
+      );
+      return;
+    }
     final saved = ref.read(savedBookIdsProvider).contains(widget.book.id);
     ref.read(savedBookIdsProvider.notifier).toggle(widget.book.id);
     ScaffoldMessenger.of(context).showSnackBar(

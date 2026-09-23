@@ -3,6 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../auth/auth_screen.dart';
+
 import '../data/supabase_book_repository.dart';
 import '../domain/book.dart';
 import '../domain/book_repository.dart';
@@ -28,29 +30,37 @@ final readingPageByBookProvider =
       (ref) => ReadingPageController(),
     );
 final savedBookIdsProvider =
-    StateNotifierProvider<SavedBookIdsController, Set<String>>(
-      (ref) => SavedBookIdsController(),
-    );
+    StateNotifierProvider<SavedBookIdsController, Set<String>>((ref) {
+      ref.watch(authStateProvider);
+      return SavedBookIdsController(
+        Supabase.instance.client.auth.currentUser?.id,
+      );
+    });
 
 class SavedBookIdsController extends StateNotifier<Set<String>> {
-  SavedBookIdsController() : super(<String>{}) {
+  SavedBookIdsController(this.userId) : super(<String>{}) {
     _restore();
   }
 
-  static const _storageKey = 'saved_book_ids';
+  final String? userId;
+  String get _storageKey => 'saved_book_ids_${userId ?? "guest"}';
 
   Future<void> _restore() async {
     final preferences = await SharedPreferences.getInstance();
+    if (!mounted) return;
     state = preferences.getStringList(_storageKey)?.toSet() ?? <String>{};
   }
 
   Future<void> toggle(String bookId) async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null || user.isAnonymous || user.id != userId) return;
     final next = {...state};
     next.contains(bookId) ? next.remove(bookId) : next.add(bookId);
     await _save(next);
   }
 
   Future<void> remove(String bookId) async {
+    if (userId == null || Supabase.instance.client.auth.currentUser?.id != userId) return;
     final next = {...state}..remove(bookId);
     await _save(next);
   }

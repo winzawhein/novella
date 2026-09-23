@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'connection_help.dart';
+
 class FriendlyErrorState extends StatelessWidget {
   const FriendlyErrorState({
     super.key,
@@ -54,6 +56,12 @@ class FriendlyErrorState extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(color: detailColor, height: 1.5),
             ),
+            if (isConnectionFailure(error))
+              TextButton.icon(
+                onPressed: () => showConnectionHelp(context),
+                icon: const Icon(Icons.vpn_lock_rounded),
+                label: const Text('Connection / VPN help'),
+              ),
             const SizedBox(height: 21),
             FilledButton.icon(
               onPressed: onRetry,
@@ -82,7 +90,7 @@ _ErrorMessage _messageFor(Object error, String resourceName) {
       text.contains('connection refused') ||
       text.contains('network')) {
     return _ErrorMessage(
-      'You’re offline',
+      'Can’t connect right now',
       'Check your internet connection, then try loading your $resourceName again.',
     );
   }

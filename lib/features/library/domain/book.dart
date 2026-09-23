@@ -14,8 +14,10 @@ class Book {
     this.description,
     this.rating = 0,
     this.reviewCount = 0,
+    this.localPath,
   });
   final String id;
+  final String? localPath;
   final String title;
   final String author;
   final String genre;
