@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'connection_help.dart';
 
-class FriendlyErrorState extends StatelessWidget {
+class FriendlyErrorState extends StatefulWidget {
   const FriendlyErrorState({
     super.key,
     required this.error,
@@ -15,6 +15,37 @@ class FriendlyErrorState extends StatelessWidget {
   final VoidCallback onRetry;
   final String resourceName;
   final bool dark;
+
+  @override
+  State<FriendlyErrorState> createState() => _FriendlyErrorStateState();
+}
+
+class _FriendlyErrorStateState extends State<FriendlyErrorState> {
+  Object get error => widget.error;
+  VoidCallback get onRetry => widget.onRetry;
+  String get resourceName => widget.resourceName;
+  bool get dark => widget.dark;
+
+  @override
+  void initState() {
+    super.initState();
+    _offerHelp();
+  }
+
+  @override
+  void didUpdateWidget(covariant FriendlyErrorState oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!isConnectionFailure(oldWidget.error)) _offerHelp();
+  }
+
+  void _offerHelp() {
+    if (!isConnectionFailure(error)) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && (ModalRoute.of(context)?.isCurrent ?? true)) {
+        showConnectionHelp(context, automatic: true);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

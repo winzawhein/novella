@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../../core/widgets/glass_action_button.dart';
 
 import '../../core/widgets/connection_help.dart';
 
@@ -47,6 +50,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Future<void> _submit() async {
     if (!_form.currentState!.validate() || _busy) return;
+    FocusScope.of(context).unfocus();
     setState(() {
       _busy = true;
       _message = null;
@@ -82,14 +86,16 @@ class _AuthScreenState extends State<AuthScreen> {
     } on AuthException catch (error) {
       if (mounted) setState(() => _message = error.message);
       if (mounted && isConnectionFailure(error)) {
-        await showConnectionHelp(context);
+        await showConnectionHelp(context, automatic: true);
       }
     } catch (error) {
       if (mounted) {
         setState(
           () => _message = 'Could not connect. Check your internet connection and try again.',
         );
-        if (isConnectionFailure(error)) await showConnectionHelp(context);
+        if (isConnectionFailure(error)) {
+          await showConnectionHelp(context, automatic: true);
+        }
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -97,149 +103,199 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Your Novella account')),
-    body: SafeArea(
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 460),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(28),
-            child: Form(
-              key: _form,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Icon(
-                    Icons.auto_stories_rounded,
-                    size: 60,
-                    color: Color(0xFF1477FA),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    _signup ? 'Make room for your next read' : 'Welcome back',
-                    style: Theme.of(context).textTheme.headlineMedium,
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Browse freely as a guest. Create an account or sign in to read and save books.',
-                  ),
-                  const SizedBox(height: 24),
-                  SegmentedButton<bool>(
-                    segments: const [
-                      ButtonSegment(
-                        value: false,
-                        label: Text('Email'),
-                        icon: Icon(Icons.email_outlined),
-                      ),
-                      ButtonSegment(
-                        value: true,
-                        label: Text('Phone'),
-                        icon: Icon(Icons.phone_outlined),
-                      ),
-                    ],
-                    selected: {_phoneMode},
-                    onSelectionChanged: _busy
-                        ? null
-                        : (value) => setState(() {
-                            _phoneMode = value.first;
-                            _message = null;
-                            _form.currentState?.reset();
-                          }),
-                  ),
-                  const SizedBox(height: 16),
-                  if (_phoneMode) ...[
-                    TextFormField(
-                      controller: _phone,
-                      enabled: !_busy,
-                      keyboardType: TextInputType.phone,
-                      autofillHints: const [AutofillHints.telephoneNumber],
-                      decoration: const InputDecoration(
-                        labelText: 'Phone number',
-                        helperText: 'Include country code. Myanmar: +959… (omit the first 0).',
-                        helperMaxLines: 2,
-                      ),
-                      validator: (value) =>
-                          RegExp(r'^\+[1-9]\d{7,14}$').hasMatch(
-                            (value ?? '').replaceAll(RegExp(r'[\s()-]'), ''),
-                          )
-                          ? null
-                          : 'Use international format, for example +959123456789',
-                    ),
-                  ] else ...[
-                    TextFormField(
-                      controller: _email,
-                      enabled: !_busy,
-                      keyboardType: TextInputType.emailAddress,
-                      autofillHints: const [AutofillHints.email],
-                      decoration: const InputDecoration(labelText: 'Email'),
-                      validator: (value) =>
-                          value != null &&
-                              RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
-                                  .hasMatch(value.trim())
-                          ? null
-                          : 'Enter a valid email address',
-                    ),
-                  ],
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _password,
-                    enabled: !_busy,
-                    obscureText: _obscure,
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      suffixIcon: IconButton(
-                        tooltip: _obscure ? 'Show password' : 'Hide password',
-                        onPressed: () => setState(() => _obscure = !_obscure),
-                        icon: Icon(
-                          _obscure
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined,
+  Widget build(BuildContext context) => Theme(
+    data: Theme.of(context).copyWith(
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 18,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: const BorderSide(color: Color(0xFFDDE5F0)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: const BorderSide(color: Color(0xFFDDE5F0)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: const BorderSide(color: Color(0xFF1477FA), width: 1.5),
+        ),
+      ),
+    ),
+    child: Scaffold(
+      backgroundColor: const Color(0xFFF3F7FD),
+      appBar: AppBar(
+        title: const Text('Your account', style: TextStyle(fontSize: 20)),
+        backgroundColor: const Color(0xFFF3F7FD),
+        scrolledUnderElevation: 0,
+        systemOverlayStyle: SystemUiOverlayStyle.dark,
+        actions: [
+          IconButton(
+            tooltip: 'Connection / VPN help',
+            onPressed: () => showConnectionHelp(context),
+            icon: const Icon(Icons.vpn_lock_outlined),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(28),
+              child: Form(
+                key: _form,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: [Color(0xFFE2EFFF), Colors.white],
                         ),
                       ),
+                      child: const Icon(
+                        Icons.auto_stories_rounded,
+                        size: 60,
+                        color: Color(0xFF1477FA),
+                      ),
                     ),
-                    validator: (value) => value == null || value.isEmpty
-                        ? 'Enter your password'
-                        : _signup && value.length < 8
-                        ? 'Use at least 8 characters'
-                        : null,
-                  ),
-                  if (_message != null)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      child: Text(_message!, semanticsLabel: _message),
+                    const SizedBox(height: 24),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 240),
+                      child: Text(
+                        _signup
+                            ? 'Make room for your next read'
+                            : 'Welcome back',
+                        key: ValueKey(_signup),
+                        style: Theme.of(context).textTheme.headlineMedium,
+                      ),
                     ),
-                  const SizedBox(height: 24),
-                  FilledButton(
-                    onPressed: _busy ? null : _submit,
-                    child: Text(
-                      _busy
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Browse freely as a guest. Create an account or sign in to read and save books.',
+                    ),
+                    const SizedBox(height: 24),
+                    SegmentedButton<bool>(
+                      segments: const [
+                        ButtonSegment(
+                          value: false,
+                          label: Text('Email'),
+                          icon: Icon(Icons.email_outlined),
+                        ),
+                        ButtonSegment(
+                          value: true,
+                          label: Text('Phone'),
+                          icon: Icon(Icons.phone_outlined),
+                        ),
+                      ],
+                      selected: {_phoneMode},
+                      onSelectionChanged: _busy
+                          ? null
+                          : (value) => setState(() {
+                              _phoneMode = value.first;
+                              _message = null;
+                              _form.currentState?.reset();
+                            }),
+                    ),
+                    const SizedBox(height: 16),
+                    if (_phoneMode) ...[
+                      TextFormField(
+                        controller: _phone,
+                        enabled: !_busy,
+                        keyboardType: TextInputType.phone,
+                        autofillHints: const [AutofillHints.telephoneNumber],
+                        decoration: const InputDecoration(
+                          labelText: 'Phone number',
+                          helperText: 'Include country code. Myanmar: +959… (omit the first 0).',
+                          helperMaxLines: 2,
+                        ),
+                        validator: (value) =>
+                            RegExp(r'^\+[1-9]\d{7,14}$').hasMatch(
+                              (value ?? '').replaceAll(RegExp(r'[\s()-]'), ''),
+                            )
+                            ? null
+                            : 'Use international format, for example +959123456789',
+                      ),
+                    ] else ...[
+                      TextFormField(
+                        controller: _email,
+                        enabled: !_busy,
+                        keyboardType: TextInputType.emailAddress,
+                        autofillHints: const [AutofillHints.email],
+                        decoration: const InputDecoration(labelText: 'Email'),
+                        validator: (value) =>
+                            value != null &&
+                                RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
+                                    .hasMatch(value.trim())
+                            ? null
+                            : 'Enter a valid email address',
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _password,
+                      enabled: !_busy,
+                      obscureText: _obscure,
+                      decoration: InputDecoration(
+                        labelText: 'Password',
+                        suffixIcon: IconButton(
+                          tooltip: _obscure ? 'Show password' : 'Hide password',
+                          onPressed: () => setState(() => _obscure = !_obscure),
+                          icon: Icon(
+                            _obscure
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                        ),
+                      ),
+                      validator: (value) => value == null || value.isEmpty
+                          ? 'Enter your password'
+                          : _signup && value.length < 8
+                          ? 'Use at least 8 characters'
+                          : null,
+                    ),
+                    if (_message != null)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        child: Text(_message!, semanticsLabel: _message),
+                      ),
+                    const SizedBox(height: 24),
+                    GlassActionButton(
+                      onPressed: _busy ? null : _submit,
+                      label: _busy
                           ? 'Please wait…'
                           : _signup
                           ? 'Create account'
                           : 'Sign in',
                     ),
-                  ),
-                  TextButton(
-                    onPressed: _busy
-                        ? null
-                        : () => setState(() {
-                            _signup = !_signup;
-                            _message = null;
-                          }),
-                    child: Text(
-                      _signup
-                          ? 'Already have an account? Sign in'
-                          : 'New here? Create an account',
+                    TextButton(
+                      onPressed: _busy
+                          ? null
+                          : () => setState(() {
+                              _signup = !_signup;
+                              _message = null;
+                            }),
+                      child: Text(
+                        _signup
+                            ? 'Already have an account? Sign in'
+                            : 'New here? Create an account',
+                      ),
                     ),
-                  ),
-                  TextButton(
-                    onPressed: _busy
-                        ? null
-                        : () => Navigator.pop(context, false),
-                    child: const Text('Continue browsing as guest'),
-                  ),
-                ],
+                    TextButton(
+                      onPressed: _busy
+                          ? null
+                          : () => Navigator.pop(context, false),
+                      child: const Text('Continue browsing as guest'),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

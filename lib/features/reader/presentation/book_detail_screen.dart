@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../auth/auth_screen.dart';
 
-import 'dart:ui';
+import '../../../core/widgets/glass_action_button.dart';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,9 +22,11 @@ class BookDetailScreen extends ConsumerWidget {
     final isSaved = ref.watch(savedBookIdsProvider).contains(book.id);
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
-        statusBarColor: Color(0xFFEC4160),
+        statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
         statusBarBrightness: Brightness.dark,
+        systemNavigationBarColor: Color(0xFFFBFBFD),
+        systemNavigationBarIconBrightness: Brightness.dark,
       ),
       child: Scaffold(
         // A dedicated footer keeps the ad outside the scrolling content and
@@ -129,10 +131,21 @@ class BookDetailScreen extends ConsumerWidget {
                     }
                     ref.read(savedBookIdsProvider.notifier).toggle(book.id);
                   },
-                  icon: Icon(
-                    isSaved ? Icons.favorite : Icons.favorite_border,
-                    color: Colors.white,
-                    size: 29,
+                  icon: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 280),
+                    transitionBuilder: (child, animation) => ScaleTransition(
+                      scale: CurvedAnimation(
+                        parent: animation,
+                        curve: Curves.easeOutBack,
+                      ),
+                      child: child,
+                    ),
+                    child: Icon(
+                      isSaved ? Icons.favorite : Icons.favorite_border,
+                      key: ValueKey(isSaved),
+                      color: Colors.white,
+                      size: 29,
+                    ),
                   ),
                 ),
               ),
@@ -141,46 +154,17 @@ class BookDetailScreen extends ConsumerWidget {
               left: 44,
               right: 44,
               bottom: 25,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(30),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [
-                          Color(0xCC69B9FF),
-                          Color(0xEE1468E9),
-                          Color(0xCC499AF7),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(color: Colors.white54),
+              child: GlassActionButton(
+                label: 'Start reading',
+                icon: Icons.auto_stories_rounded,
+                onPressed: () {
+                  ref.read(selectedBookProvider.notifier).state = book;
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => ReaderScreen(book: book),
                     ),
-                    child: FilledButton(
-                      onPressed: () {
-                        ref.read(selectedBookProvider.notifier).state = book;
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => ReaderScreen(book: book),
-                          ),
-                        );
-                      },
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        minimumSize: const Size.fromHeight(54),
-                        shape: const StadiumBorder(),
-                      ),
-                      child: const Text(
-                        'Start reading',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+                  );
+                },
               ),
             ),
           ],
@@ -201,7 +185,7 @@ class _DetailHero extends ConsumerWidget {
         Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              begin: Alignment.topLeft,
+              begin: Alignment.topCenter,
               end: Alignment.bottomRight,
               colors: [Color(0xFFEC4160), Color(0xFFB11066), Color(0xFF5312A8)],
             ),

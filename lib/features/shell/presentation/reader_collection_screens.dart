@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import '../../../core/widgets/glass_action_button.dart';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../auth/auth_screen.dart';
@@ -269,7 +271,7 @@ class ProfileScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
             Material(
-              color: Colors.white,
+              color: const Color(0xFFF0F6FF),
               borderRadius: BorderRadius.circular(28),
               child: Padding(
                 padding: const EdgeInsets.all(28),
@@ -297,9 +299,9 @@ class ProfileScreen extends ConsumerWidget {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 24),
-                    FilledButton(
+                    GlassActionButton(
                       onPressed: () => requireAccount(context),
-                      child: const Text('Create account / Sign in'),
+                      label: 'Create account / Sign in',
                     ),
                   ],
                 ),

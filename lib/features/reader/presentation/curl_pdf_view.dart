@@ -31,13 +31,10 @@ class CurlPdfViewState extends State<CurlPdfView>
   final _images = <int, ui.Image>{};
   final _pending = <int, Future<void>>{};
   final _transform = TransformationController();
-  late final _animation =
-      AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 380),
-      )..addListener(() {
-        if (mounted) setState(() {});
-      });
+  late final _animation = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 300),
+  );
   int _page = 0, _count = 0, _direction = 1;
   bool _loaded = false, _busy = false;
   double _scale = 1;
@@ -73,27 +70,33 @@ class CurlPdfViewState extends State<CurlPdfView>
 
   Future<void> _load(int page) {
     if (_images.containsKey(page)) return Future.value();
-    return _pending.putIfAbsent(page, () async {
-      final data = await _channel.invokeMapMethod<String, dynamic>('render', {
-        'path': widget.path,
-        'page': page,
-      });
-      final codec = await ui.instantiateImageCodec(data!['bytes']);
-      final frame = await codec.getNextFrame();
-      codec.dispose();
-      if (!mounted) {
-        frame.image.dispose();
-        return;
-      }
-      _count = data['count'] as int;
-      _images[page] = frame.image;
-      setState(() {});
-    }).whenComplete(() => _pending.remove(page));
+    return _pending
+        .putIfAbsent(page, () async {
+          final data = await _channel.invokeMapMethod<String, dynamic>(
+            'render',
+            {'path': widget.path, 'page': page},
+          );
+          final codec = await ui.instantiateImageCodec(data!['bytes']);
+          final frame = await codec.getNextFrame();
+          codec.dispose();
+          if (!mounted) {
+            frame.image.dispose();
+            return;
+          }
+          _count = data['count'] as int;
+          _images[page] = frame.image;
+          setState(() {});
+        })
+        .whenComplete(() => _pending.remove(page));
   }
 
   Future<void> _prefetch() async {
     try {
-      for (final i in [_page - 1, _page + 1]) {
+      for (final i in [
+        _page + _direction,
+        _page - _direction,
+        _page + 2 * _direction,
+      ]) {
         if (i >= 0 && i < _count) await _load(i);
       }
       if (!mounted) return;
@@ -109,7 +112,11 @@ class CurlPdfViewState extends State<CurlPdfView>
   }
 
   Future<void> goToPage(int target) async {
-    if (!_loaded || _busy || target == _page || target < 0 || target >= _count) {
+    if (!_loaded ||
+        _busy ||
+        target == _page ||
+        target < 0 ||
+        target >= _count) {
       return;
     }
     _busy = true;
@@ -119,7 +126,16 @@ class CurlPdfViewState extends State<CurlPdfView>
       _direction = target > _page ? 1 : -1;
       // Non-adjacent scrub jumps do not pretend to turn intervening sheets.
       if ((target - _page).abs() == 1) {
-        await _animation.animateTo(1, curve: Curves.easeOutCubic);
+        await _animation.animateTo(
+          1,
+          duration: Duration(
+            milliseconds: (300 * (1 - _animation.value)).round().clamp(
+              120,
+              300,
+            ),
+          ),
+          curve: Curves.easeOutCubic,
+        );
       }
       if (!mounted) return;
       setState(() {
@@ -139,6 +155,20 @@ class CurlPdfViewState extends State<CurlPdfView>
     _scale = value;
     _transform.value = Matrix4.diagonal3Values(value, value, 1);
     setState(() {});
+  }
+
+  Future<void> _cancelTurn() async {
+    if (_busy) return;
+    _busy = true;
+    try {
+      await _animation.animateBack(
+        0,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+      );
+    } finally {
+      _busy = false;
+    }
   }
 
   @override
@@ -171,11 +201,15 @@ class CurlPdfViewState extends State<CurlPdfView>
             size: size,
             child: GestureDetector(
               onTap: widget.onTouch,
+              onHorizontalDragStart: _scale > 1
+                  ? null
+                  : (_) {
+                      if (!_busy) widget.onTouch();
+                    },
               onHorizontalDragUpdate: _scale > 1
                   ? null
                   : (details) {
                       if (_busy) return;
-                      widget.onTouch();
                       if (_animation.value == 0) {
                         _direction = details.delta.dx < 0 ? 1 : -1;
                       }
@@ -183,25 +217,25 @@ class CurlPdfViewState extends State<CurlPdfView>
                       if (!_images.containsKey(next)) return;
                       _animation.value =
                           (_animation.value -
-                                  details.delta.dx * _direction / size.width)
+                                  details.delta.dx *
+                                      _direction /
+                                      (size.width * .8))
                               .clamp(0, 1);
                     },
               onHorizontalDragEnd: _scale > 1
                   ? null
                   : (details) async {
                       if (_busy) return;
-                      if (_animation.value > .22 ||
-                          details.velocity.pixelsPerSecond.dx * _direction <
-                              -450) {
+                      final velocity =
+                          details.velocity.pixelsPerSecond.dx * _direction;
+                      if (velocity < -320 ||
+                          (_animation.value > .16 && velocity < 320)) {
                         await goToPage(_page + _direction);
                       } else {
-                        await _animation.animateBack(
-                          0,
-                          curve: Curves.easeOutCubic,
-                        );
+                        await _cancelTurn();
                       }
                     },
-              onHorizontalDragCancel: () => _animation.animateBack(0),
+              onHorizontalDragCancel: _cancelTurn,
               child: InteractiveViewer(
                 transformationController: _transform,
                 minScale: 1,
@@ -210,13 +244,18 @@ class CurlPdfViewState extends State<CurlPdfView>
                 onInteractionEnd: (_) => setState(
                   () => _scale = _transform.value.getMaxScaleOnAxis(),
                 ),
-                child: CustomPaint(
-                  size: size,
-                  painter: _CurlPainter(
-                    current: image,
-                    next: _images[_page + _direction],
-                    progress: _animation.value,
-                    direction: _direction,
+                child: RepaintBoundary(
+                  child: AnimatedBuilder(
+                    animation: _animation,
+                    builder: (context, _) => CustomPaint(
+                      size: size,
+                      painter: _CurlPainter(
+                        current: image,
+                        next: _images[_page + _direction],
+                        progress: _animation.value,
+                        direction: _direction,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -323,5 +362,9 @@ class _CurlPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _CurlPainter old) => true;
+  bool shouldRepaint(covariant _CurlPainter old) =>
+      current != old.current ||
+      next != old.next ||
+      progress != old.progress ||
+      direction != old.direction;
 }
