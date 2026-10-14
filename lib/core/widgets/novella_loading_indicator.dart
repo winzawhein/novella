@@ -18,7 +18,18 @@ class _NovellaLoadingIndicatorState extends State<NovellaLoadingIndicator>
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1850),
-  )..repeat(reverse: true);
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.stop();
+      _controller.value = .5;
+    } else if (!_controller.isAnimating) {
+      _controller.repeat(reverse: true);
+    }
+  }
 
   @override
   void dispose() {
@@ -30,47 +41,69 @@ class _NovellaLoadingIndicatorState extends State<NovellaLoadingIndicator>
   Widget build(BuildContext context) => Center(
     child: Semantics(
       label: widget.message.isEmpty ? 'Loading' : widget.message,
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) {
-          final open = Curves.easeInOutCubic.transform(_controller.value);
-          return SizedBox(
-            width: 154,
-            height: 128,
-            child: Stack(
-              alignment: Alignment.center,
-              clipBehavior: Clip.none,
-              children: [
-                for (var layer = 2; layer >= 0; layer--) ...[
-                  _FlyingPage(isLeft: true, layer: layer, open: open),
-                  _FlyingPage(isLeft: false, layer: layer, open: open),
-                ],
-                Transform.translate(
-                  offset: Offset(0, -open * 2),
-                  child: Transform.scale(
-                    scaleX: 1 + open * .075,
-                    child: Image.asset(
-                      'assets/novella_launcher_logo.png',
-                      width: 106,
-                      height: 106,
-                    ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          RepaintBoundary(
+            child: AnimatedBuilder(
+              animation: _controller,
+              builder: (context, _) {
+                final open = Curves.easeInOutCubic.transform(_controller.value);
+                return SizedBox(
+                  width: 154,
+                  height: 128,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    clipBehavior: Clip.none,
+                    children: [
+                      for (var layer = 2; layer >= 0; layer--) ...[
+                        _FlyingPage(isLeft: true, layer: layer, open: open),
+                        _FlyingPage(isLeft: false, layer: layer, open: open),
+                      ],
+                      Transform.translate(
+                        offset: Offset(0, -open * 2),
+                        child: Transform.scale(
+                          scaleX: 1 + open * .075,
+                          child: Image.asset(
+                            'assets/novella_launcher_logo.png',
+                            width: 106,
+                            height: 106,
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 9,
+                        child: Container(
+                          width: 38 + open * 20,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1C4EA9)
+                                .withValues(alpha: .14),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                Positioned(
-                  bottom: 9,
-                  child: Container(
-                    width: 38 + open * 20,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1C4EA9).withValues(alpha: .14),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                ),
-              ],
+                );
+              },
             ),
-          );
-        },
+          ),
+          if (widget.message.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Text(
+                widget.message,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     ),
   );
